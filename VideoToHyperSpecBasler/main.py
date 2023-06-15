@@ -5,7 +5,7 @@ from pypylon import pylon           # version 1.9
 from pypylon import genicam
 
 
-#dies ist ein Test
+
 def create_Metadata(h :int, w :int, frames :int):
     meta = {}
     meta["description"] = "Hyper X1 (Prototype)"
