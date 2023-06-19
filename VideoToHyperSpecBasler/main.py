@@ -35,11 +35,11 @@ def create_BandInfo(wide :int):
     #655.0 nm -> 799 Pixel
     w = [543.5, 632.8, 655, 940]
     #pixelWerte
-    p = [399, 715, 799, 1733]
+    p = [457, 740, 814, 1625]
     A, B, C = np.polyfit(p,w,2)
     print("A: {} , B: {} C: {}".format(A,B,C))
     BandInfo = f"{{ {', '.join(str(A * i*i +B*i +C) for i in range(0, wide))} }}"
-    BandInfo = range(wide)
+    #BandInfo = range(wide)
     print("Band Info calculated!")
     return BandInfo
 
@@ -64,8 +64,8 @@ def initCamera():
     return camera
 
 path = "C:/Users/kkuckelsberg/HyperSpec"
-filename = "/first_capture_basler"
-vid_name = "/first_capture_basler.mp4"
+
+filename = "/Hallogen"
 
 camera = initCamera()
 
@@ -87,8 +87,8 @@ camera.Close()
 
 imgArray = np.stack(imgArray, axis=0)  # dimensions (T, H, W, C)
 
-print(imgArray.dtype)
+print(f'output datatyp: {imgArray.dtype}')
 
 #convert 4D Numpy Matrix to Hyperspac file
-envi.save_image(f"{path}/Bil{filename}.hdr", imgArray, metadata=create_Metadata(imgArray[0].shape[0], imgArray[0].shape[1], imgArray.shape[0]), force=True, ext="bil",dtype= np.uint16)
-print("HyperSpactral Image saved successfully in {}".format(f"{path}/Bil{filename}.hdr"))
+envi.save_image(f"{path}/Bil{filename}.hdr", imgArray, metadata=create_Metadata(imgArray[0].shape[0], imgArray[0].shape[1], imgArray.shape[0]), force=True, ext="bil",dtype=np.uint16)
+print("HyperSpactral Image saved successfully in {}".format(f"{path}/Bil{filename}.bil"))
