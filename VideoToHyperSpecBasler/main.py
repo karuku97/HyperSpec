@@ -31,9 +31,9 @@ def create_Metadata(h :int, w :int, frames :int,camera):
 def create_BandInfo(wide :int):
     #correcturFAktor
     #Wellenlängen
-    #543.5 nm -> 399 Pixel
-    #632.8 nm -> 715 Pixe
-    #655.0 nm -> 799 Pixel
+    #543.5 nm
+    #632.8 nm
+    #655.0 nm
     w = [543.5, 632.8, 655, 940]
     #pixelWerte
     p = [457, 740, 814, 1625]
