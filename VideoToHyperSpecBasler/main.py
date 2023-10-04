@@ -29,11 +29,7 @@ def create_Metadata(h :int, w :int, frames :int,camera):
     return meta
 
 def create_BandInfo(wide :int):
-    #correcturFAktor
-    #Wellenlängen
-    #543.5 nm
-    #632.8 nm
-    #655.0 nm
+
     w = [405, 632.8,980]
     #pixelWerte
     p = [20,225,508]
@@ -50,7 +46,7 @@ def initCamera():
     camera.Open()
     #camera.Height.SetValue(996)
     #camera.OffsetY.SetValue(104)
-    camera.ExposureTime.SetValue(25000)
+    camera.ExposureTime.SetValue(10000)
     camera.PixelFormat.SetValue("Mono8")
     camera.Gain.SetValue(0)
     camera.BinningHorizontal.SetValue(1)
@@ -68,50 +64,37 @@ def initCamera():
 
 
 
-path = "/Users/karlkuckelsberg/Desktop/Arbeit"
+path = "C:/Users/kkuckelsberg/HyperSpec"
 
 filename = "/Test"
 
 camera = initCamera()
-numberOfImagesToGrab = 200
+numberOfImagesToGrab = 1200
 
 
-imgArray = np.zeros([camera.Height.GetValue(),camera.Width.GetValue(),numberOfImagesToGrab])
+#imgArray = np.zeros([camera.Height.GetValue(),camera.Width.GetValue(),numberOfImagesToGrab])
 i = 0
+imgArray=[]
 
 camera.StartGrabbingMax(numberOfImagesToGrab)
 
 
-#ref = cv.imread("Teflon_muster.png",cv.IMREAD_UNCHANGED)
 
-#print(f'DataType ReferenzImg: {ref.dtype}')
-
-#ref = np.uint16((ref[:,:,0]/255)*4095)
-#ref = np.clip(ref,1,np.amax(ref))
 
 while camera.IsGrabbing():
     grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
     if grabResult.GrabSucceeded():
         img = grabResult.Array
-       # img = np.transpose(grabResult.Array)
-#        print(f'max Img: {np.amax(img)}, max ref: {np.amax(ref)}')
-        #img = np.divide(img, ref)*1000
-        #img = np.clip(img,0,10000)
-       # if True:
-         #   ##Rotation by 2 Degree
-         #   (h, w) = img.shape[:2]
-        #    (cX, cY) = (w // 2, h // 2)
-        ##    M = cv.getRotationMatrix2D((cX, cY), -1, 1)
-        #    img = cv.warpAffine(img, M, (w, h))
-            # if i == 100:
-        #     cv.imwrite("Debug.jpg",img)
 
-        imgArray[:,:,i] = img
 
-        i+=1
+        imgArray.append(img)
+
+
 
 
     grabResult.Release()
+
+# transpose Picture
 tmp2=[]
 for i in imgArray:
     tmp2.append(np.transpose(i))
@@ -120,6 +103,7 @@ imgArray = tmp2
 imgArray = np.stack(imgArray, axis=0)  # dimensions (T, H, W, C)
 
 print(f'output datatyp: {imgArray.dtype}')
+
 
 #convert 4D Numpy Matrix to Hyperspac file
 envi.save_image(f"{path}/BIL{filename}.hdr", imgArray, metadata=create_Metadata(imgArray[0].shape[0], imgArray[0].shape[1], imgArray.shape[0],camera), force=True, ext="bil",dtype=np.uint16)
