@@ -85,11 +85,13 @@ class mainwindow():
         self.filename = self.ent_filename.get()
 
         self.CM.set_framerate(self.Basler.SERIAL_NUMBER,float(self.FPS))
-        print(f'Framerate set to: {self.CM.cameras[0].AcquisitionFrameRate.GetValue()}')
+        self.FPS = self.CM.cameras[0].ResultingFrameRate.GetValue()
+        self.ent_FPS.insert(0,self.FPS)
+        print(f'Framerate set to: {self.CM.cameras[0].ResultingFrameRate.GetValue()}')
         print(f'filepath: {self.filepath}.{self.filename}.hdr')
         print(f'Number of Samples: {self.samples}')
 
-        tkinter.messagebox.showinfo(title="Info", message=f'Applied Values{os.linesep}FPS:{self.CM.cameras[0].AcquisitionFrameRate.GetValue()}{os.linesep}Filepath: {self.filepath}.{self.filename}.hdr{os.linesep}Number of Samples: {self.samples}')
+        tkinter.messagebox.showinfo(title="Info", message=f'Applied Values{os.linesep}FPS:{self.CM.cameras[0].ResultingFrameRate.GetValue()}{os.linesep}Filepath: {self.filepath}.{self.filename}.hdr{os.linesep}Number of Samples: {self.samples}')
 
     def capture_Cube(self):
         cube = self.CM.grab_hyperspec(kic.Basler.SERIAL_NUMBER, self.samples, 3, False, 0)
@@ -109,6 +111,7 @@ class mainwindow():
     def init_camera(self):
         CM = kic.CameraManager()
         CM.add_cameras()
+        CM.cameras[0].DeviceLinkThroughputLimitMode.SetValue("Off")
 
         return CM
 
