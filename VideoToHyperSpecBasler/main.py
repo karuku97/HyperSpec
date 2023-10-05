@@ -1,111 +1,130 @@
+import os
+
 import cv2.cv2 as cv #version 4.5.562
 import numpy as np
 from spectral import envi
 from pypylon import pylon           # version 1.9
 from pypylon import genicam
+import tkinter
+from tkinter import ttk, messagebox
+from PIL import Image, ImageTk
+
+import kira_image_capture as kic
+
+
+class mainwindow():
+    def __init__(self):
+        self.FPS = 25
+        self.filepath = "E:/Desktop/tmp"
+        self.samples = 200
+        self.filename = "test"
+        self.CM = self.init_camera()
+        self.Basler = kic.Basler()
+        self.img = None
+
+
+        root = tkinter.Tk()
+        root.title("Hyper Spectral Cube Aufnahme")
+        #root.geometry("800x600")
+        #root.minsize(width=250, height=250)
+
+        self.lb_samples = ttk.Label(root, text="Number of Samples:")
+        self.lb_samples.grid(row=0, column=0)
+
+        self.ent_samples = ttk.Entry(root)
+        self.ent_samples.grid(row=0, column=1,columnspan=2,sticky="ew")
+        self.ent_samples.insert(0,self.samples)
+
+        self.lb_FPS = ttk.Label(root, text="FPS:")
+        self.lb_FPS.grid(row=1, column=0)
+
+        self.ent_FPS = ttk.Entry(root)
+        self.ent_FPS.grid(row=1, column=1,columnspan=2,sticky="ew")
+        self.ent_FPS.insert(0,self.FPS)
+
+        self.lb_file = ttk.Label(root, text="Filepath:")
+        self.lb_file.grid(row=2, column=0)
+
+        self.ent_file = ttk.Entry(root)
+        self.ent_file.grid(row=2, column=1,columnspan=2,sticky="ew")
+        self.ent_file.insert(0,self.filepath)
+
+        self.lb_filename = ttk.Label(root, text="Filename:")
+        self.lb_filename.grid(row=2, column=0)
+
+        self.ent_filename = ttk.Entry(root)
+        self.ent_filename.grid(row=3, column=1,columnspan=2,sticky="ew")
+        self.ent_filename.insert(0, self.filename)
+
+        self.btn_apply = ttk.Button(root, text="Apply", command=self.apply_Values)
+        self.btn_apply.grid(row=4, column=0)
+
+        self.btn_capture = ttk.Button(root, command=self.capture_Cube, text="Capture Cube")
+        self.btn_capture.grid(row=4, column=1)
+
+        self.btn_capture = ttk.Button(root, command=self.new_test_image, text="Test Image")
+        self.btn_capture.grid(row=4, column=2)
+
+        self.lb_test_img = ttk.Label(root,image=self.img)
+        self.lb_test_img.grid(row=5,column=0,columnspan=3)
+
+        root.mainloop()
+
+    def new_test_image(self):
+        img = self.CM.capture_frame(kic.Basler.SERIAL_NUMBER)
+        img = cv.resize(img,(600,400))
+        img = ImageTk.PhotoImage(Image.fromarray(img))
+        self.lb_test_img.configure(image=img)
+        self.lb_test_img.image = img
+
+    def apply_Values(self):
+
+        self.FPS = float(self.ent_FPS.get())
+        self.filepath = self.ent_file.get()
+        self.samples = int(self.ent_samples.get())
+        self.filename = self.ent_filename.get()
+
+        self.CM.set_framerate(self.Basler.SERIAL_NUMBER,float(self.FPS))
+        print(f'Framerate set to: {self.CM.cameras[0].AcquisitionFrameRate.GetValue()}')
+        print(f'filepath: {self.filepath}.{self.filename}.hdr')
+        print(f'Number of Samples: {self.samples}')
+
+        tkinter.messagebox.showinfo(title="Info", message=f'Applied Values{os.linesep}FPS:{self.CM.cameras[0].AcquisitionFrameRate.GetValue()}{os.linesep}Filepath: {self.filepath}.{self.filename}.hdr{os.linesep}Number of Samples: {self.samples}')
+
+    def capture_Cube(self):
+        cube = self.CM.grab_hyperspec(kic.Basler.SERIAL_NUMBER, self.samples, 3, False, 0)
+
+        # Calibration
+        w = [405, 632.8, 980]
+        # pixelWerte
+        p = [20, 225, 508]
+
+        A, B, C = np.polyfit(p, w, 2)
+
+        meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], self.samples, kic.Basler.Y_OFFSET, kic.Basler.Y_BINNING, A, B, C, 0)
+        kic.HyperspecUtility.write_cube(cube,meta,self.filepath,f'{self.filename}.hdr')
+
+        tkinter.messagebox.showinfo(title="Info",message="Cube captures Successfully")
+
+    def init_camera(self):
+        CM = kic.CameraManager()
+        CM.add_cameras()
+
+        return CM
 
 
 
-def create_Metadata(h :int, w :int, frames :int,camera):
-    meta = {}
-    meta["description"] = "Hyper X1 (Prototype) Basler"
-    meta["samples"] = camera.Height.GetValue()
-    meta["lines"] = frames
-    #meta["bands"] = camera.Width.GetValue()
-    meta["bands"] = 540
-    meta["spectral binning"] = 1
-    meta["interleave"] = "bil"
-    meta["bit depth"] = 0
-    meta["header offset"] = 0
-    meta["framerate"] = camera.ResultingFrameRate.GetValue()
-    meta["shutter"] = camera.ExposureTime.GetValue()
-    meta["gain"] = camera.Gain.GetValue()
-    meta["imager type"] = camera.GetDeviceInfo().GetModelName()
-    meta["imager serial number"] = camera.GetDeviceInfo().GetSerialNumber()
-    meta["wavelength units"] = "nm"
-    meta["wavelength"] = create_BandInfo(540)
-    meta["reflectance scale factor"] = 0
-    print("Metadata created!")
-    return meta
-
-def create_BandInfo(wide :int):
-
-    w = [405, 632.8,980]
-    #pixelWerte
-    p = [20,225,508]
-    A, B, C = np.polyfit(p,w,2)
-    print("A: {} , B: {} C: {}".format(A,B,C))
-    BandInfo = f"{{ {', '.join(str(A * i*i +B*i +C) for i in range(0, wide))} }}"
-    #BandInfo = range(wide)
-    print("Band Info calculated!")
-    return BandInfo
-
-def initCamera():
-
-    camera = pylon.InstantCamera(pylon.TlFactory.GetInstance().CreateFirstDevice())
-    camera.Open()
-    #camera.Height.SetValue(996)
-    #camera.OffsetY.SetValue(104)
-    camera.ExposureTime.SetValue(10000)
-    camera.PixelFormat.SetValue("Mono8")
-    camera.Gain.SetValue(0)
-    camera.BinningHorizontal.SetValue(1)
-    width = camera.Width.GetValue()
-    height = camera.Height.GetValue()
-    print(f'Binning: {camera.BinningVertical.GetValue}')
-    print(f'Gain: {camera.Gain.GetValue()}')
-    print(f'Height: {height}')
-    print(f'Width: {width}')
-    print(f'OffsetY: {camera.OffsetY.GetValue()}')
-    print("Exposuretime:. ".format(camera.ExposureTime.GetValue()))
-    print("Framerat: {}".format(camera.ResultingFrameRate.GetValue()))
-    print("Pixeltype: {}".format(camera.PixelFormat.GetValue()))
-    return camera
 
 
-
-path = "C:/Users/kkuckelsberg/HyperSpec"
-
-filename = "/Test"
-
-camera = initCamera()
-numberOfImagesToGrab = 1200
+#Basler.SERIAL_NUMBER = CM.cameras[0].GetDeviceInfo().GetSerialNumber()
 
 
-#imgArray = np.zeros([camera.Height.GetValue(),camera.Width.GetValue(),numberOfImagesToGrab])
-i = 0
-imgArray=[]
-
-camera.StartGrabbingMax(numberOfImagesToGrab)
+#
 
 
 
 
-while camera.IsGrabbing():
-    grabResult = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
-    if grabResult.GrabSucceeded():
-        img = grabResult.Array
-
-
-        imgArray.append(img)
 
 
 
-
-    grabResult.Release()
-
-# transpose Picture
-tmp2=[]
-for i in imgArray:
-    tmp2.append(np.transpose(i))
-imgArray = tmp2
-
-imgArray = np.stack(imgArray, axis=0)  # dimensions (T, H, W, C)
-
-print(f'output datatyp: {imgArray.dtype}')
-
-
-#convert 4D Numpy Matrix to Hyperspac file
-envi.save_image(f"{path}/BIL{filename}.hdr", imgArray, metadata=create_Metadata(imgArray[0].shape[0], imgArray[0].shape[1], imgArray.shape[0],camera), force=True, ext="bil",dtype=np.uint16)
-print("HyperSpactral Image saved successfully in {}".format(f"{path}/Bil{filename}.bil"))
-camera.Close()
+mw =mainwindow()
