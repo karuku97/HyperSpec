@@ -1,11 +1,11 @@
 import os
 
-import cv2.cv2 as cv #version 4.5.562
+import cv2 as cv #version 4.5.562
 import numpy as np
 from spectral import envi
 from pypylon import pylon           # version 1.9
 from pypylon import genicam
-import tkinter
+import tkinter 
 from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
 
@@ -14,12 +14,13 @@ import kira_image_capture as kic
 
 class mainwindow():
     def __init__(self):
-        self.FPS = 25
-        self.filepath = "E:/Desktop/tmp"
-        self.samples = 200
+        self.expTime = 12000
+        self.filepath = "C:/Users/HSBI/Documents/Softwareentwicklung/CaptureCubeBasler/tmp"
+        self.samples = 20
         self.filename = "test"
+        self.Basler = kic.PikaL()
         self.CM = self.init_camera()
-        self.Basler = kic.Basler()
+
         self.img = None
 
 
@@ -35,12 +36,12 @@ class mainwindow():
         self.ent_samples.grid(row=0, column=1,columnspan=2,sticky="ew")
         self.ent_samples.insert(0,self.samples)
 
-        self.lb_FPS = ttk.Label(root, text="FPS:")
-        self.lb_FPS.grid(row=1, column=0)
+        self.lb_expTime = ttk.Label(root, text="Exposure Time:")
+        self.lb_expTime.grid(row=1, column=0)
 
-        self.ent_FPS = ttk.Entry(root)
-        self.ent_FPS.grid(row=1, column=1,columnspan=2,sticky="ew")
-        self.ent_FPS.insert(0,self.FPS)
+        self.ent_expTime = ttk.Entry(root)
+        self.ent_expTime.grid(row=1, column=1,columnspan=2,sticky="ew")
+        self.ent_expTime.insert(0,self.expTime)
 
         self.lb_file = ttk.Label(root, text="Filepath:")
         self.lb_file.grid(row=2, column=0)
@@ -71,7 +72,7 @@ class mainwindow():
         root.mainloop()
 
     def new_test_image(self):
-        img = self.CM.capture_frame(kic.Basler.SERIAL_NUMBER)
+        img = self.CM.capture_frame(self.Basler.SERIAL_NUMBER)
         img = cv.resize(img,(600,400))
         img = ImageTk.PhotoImage(Image.fromarray(img))
         self.lb_test_img.configure(image=img)
@@ -79,22 +80,23 @@ class mainwindow():
 
     def apply_Values(self):
 
-        self.FPS = float(self.ent_FPS.get())
+        self.expTime = float(self.ent_expTime.get())
         self.filepath = self.ent_file.get()
         self.samples = int(self.ent_samples.get())
         self.filename = self.ent_filename.get()
 
-        self.CM.set_framerate(self.Basler.SERIAL_NUMBER,float(self.FPS))
-        self.FPS = self.CM.cameras[0].ResultingFrameRate.GetValue()
-        self.ent_FPS.insert(0,self.FPS)
-        print(f'Framerate set to: {self.CM.cameras[0].ResultingFrameRate.GetValue()}')
-        print(f'filepath: {self.filepath}.{self.filename}.hdr')
+        self.CM.set_exposure(self.Basler.SERIAL_NUMBER,float(self.expTime))
+        self.expTime = self.CM.cameras[0].ExposureTime.GetValue()
+        self.ent_expTime.delete(0,tkinter.END)
+        self.ent_expTime.insert(0,int(self.expTime))
+        print(f'Framerate set to: {self.CM.cameras[0].ExposureTime.GetValue()}')
+        print(f'filepath: {self.filepath}/{self.filename}.hdr')
         print(f'Number of Samples: {self.samples}')
 
-        tkinter.messagebox.showinfo(title="Info", message=f'Applied Values{os.linesep}FPS:{self.CM.cameras[0].ResultingFrameRate.GetValue()}{os.linesep}Filepath: {self.filepath}.{self.filename}.hdr{os.linesep}Number of Samples: {self.samples}')
+        tkinter.messagebox.showinfo(title="Applied Values", message=f'Exposure TIme:{self.CM.cameras[0].ExposureTime.GetValue()}{os.linesep}FPS:{self.CM.cameras[0].ResultingFrameRate.GetValue()}{os.linesep}Number of Samples: {self.samples}{os.linesep}Filepath: {self.filepath}/{self.filename}.hdr')
 
     def capture_Cube(self):
-        cube = self.CM.grab_hyperspec(kic.Basler.SERIAL_NUMBER, self.samples, 3, False, 0)
+        cube = self.CM.grab_hyperspec(self.Basler.SERIAL_NUMBER, self.samples, 3, False, 0)
 
         # Calibration
         w = [405, 632.8, 980]
@@ -103,7 +105,12 @@ class mainwindow():
 
         A, B, C = np.polyfit(p, w, 2)
 
-        meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], self.samples, kic.Basler.Y_OFFSET, kic.Basler.Y_BINNING, A, B, C, 0)
+        # PikaL (camera data class parameter
+        meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], self.samples, self.Basler.Y_OFFSET, kic.Basler.Y_BINNING, self.Basler.A, self.Basler.B, self.Basler.C, 0)
+
+        #manuelle Kalibrirung
+        #meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], self.samples, self.Basler.Y_OFFSET, kic.Basler.Y_BINNING, A, B, C, 0)
+
         kic.HyperspecUtility.write_cube(cube,meta,self.filepath,f'{self.filename}.hdr')
 
         tkinter.messagebox.showinfo(title="Info",message="Cube captures Successfully")
@@ -112,22 +119,8 @@ class mainwindow():
         CM = kic.CameraManager()
         CM.add_cameras()
         CM.cameras[0].DeviceLinkThroughputLimitMode.SetValue("Off")
+        CM.set_camera_window(self.Basler.SERIAL_NUMBER,self.Basler.ROI_WIDTH,self.Basler.ROI_HEIGHT,self.Basler.X_OFFSET,self.Basler.Y_OFFSET,self.Basler.Y_BINNING)
 
         return CM
-
-
-
-
-
-#Basler.SERIAL_NUMBER = CM.cameras[0].GetDeviceInfo().GetSerialNumber()
-
-
-#
-
-
-
-
-
-
 
 mw =mainwindow()
