@@ -140,7 +140,7 @@ class CameraManager():
                 if should_correct is True:
                     dark_cube = np.array(HyperspecUtility.read_cube(path, "dark_cube", should_scale= False))
                     reflectance_cube = np.array(HyperspecUtility.read_cube(path, "white_cube", should_scale= False))
-                    print(reflectance_cube)
+                    #print(reflectance_cube)
                     while camera.IsGrabbing():
                         grab_result = camera.RetrieveResult(5000, pylon.TimeoutHandling_ThrowException)
                         if grab_result.GrabSucceeded():
@@ -164,8 +164,8 @@ class CameraManager():
         for camera in self.cameras:
             if camera.GetDeviceInfo().GetSerialNumber() == serial_number:
                 # record a reference dark frame
-                print("Ready to record dark frame. Place a lens cap on the imager.")
-                input("Press Enter to begin recording.")  # wait for user to be ready
+                #print("Ready to record dark frame. Place a lens cap on the imager.")
+                #input("Press Enter to begin recording.")  # wait for user to be ready
                 dark_cube = HyperspecUtility.capture_average_frame(camera, line_count)
                 return dark_cube
         raise Exception(f"Camera with serial number {serial_number} not found")
@@ -176,8 +176,8 @@ class CameraManager():
         for camera in self.cameras:
             if camera.GetDeviceInfo().GetSerialNumber() == serial_number:
                 # record a reference white frame
-                print("Ready to record white frame. Place reference material in the field of view of imager.")
-                input("Press Enter to begin recording.")  # wait for user to be ready
+                #print("Ready to record white frame. Place reference material in the field of view of imager.")
+                #input("Press Enter to begin recording.")  # wait for user to be ready
                 white_cube = HyperspecUtility.capture_average_frame(camera, line_count)
                 return white_cube
         raise Exception(f"Camera with serial number {serial_number} not found")
