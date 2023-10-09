@@ -1,34 +1,30 @@
 import os
-
 import cv2 as cv #version 4.5.562
 import numpy as np
-from spectral import envi
-from pypylon import pylon           # version 1.9
-from pypylon import genicam
 import tkinter 
 from tkinter import ttk, messagebox
 from PIL import Image, ImageTk
-
 import kira_image_capture as kic
 
 
 class mainwindow():
     def __init__(self):
+        """Initalizing Mainwindow and defining GUI"""
         self.expTime = 12000
+        # Lab PC Path
         #self.filepath = "C:/Users/HSBI/Documents/Softwareentwicklung/CaptureCubeBasler/tmp"
+        # Mac Path
         self.filepath = "/Users/karlkuckelsberg/Desktop/tmp"
         self.samples = 20
         self.filename = "test"
         self.Basler = kic.Basler()
         self.CM = self.init_camera()
-
         self.img = None
 
 
         root = tkinter.Tk()
         root.title("Hyper Spectral Cube Aufnahme")
-        #root.geometry("800x600")
-        #root.minsize(width=250, height=250)
+
 
         self.lb_samples = ttk.Label(root, text="Number of Samples:")
         self.lb_samples.grid(row=0, column=0)
@@ -78,29 +74,36 @@ class mainwindow():
 
         root.mainloop()
 
+    def __del__(self):
+        """destruct mainwindow and close Camera"""
+        self.CM.remove_camera(self.Basler.SERIAL_NUMBER)
+
     def white_cube(self):
+        """Callback function for capturing bright Calibration cube"""
         tkinter.messagebox.showinfo(title="Info",message="Ready to record white frame. Place reference material in the field of view of imager.")
 
         white_cube = self.CM.grab_white_cube(self.Basler.SERIAL_NUMBER)
         meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], 30, self.Basler.Y_OFFSET,
-                                                      kic.Basler.Y_BINNING, self.Basler.A, self.Basler.B, self.Basler.C,
+                                                      self.Basler.Y_BINNING, self.Basler.A, self.Basler.B, self.Basler.C,
                                                       0)
 
         kic.HyperspecUtility.write_cube(white_cube, meta, f'{self.filepath}/Corr', f'white_cube.hdr')
         tkinter.messagebox.showinfo(title="Info", message="white Cube captured successfully")
-        #print("Cube Captured")
+
 
     def black_cube(self):
+        """Callback function for capturing dark Calibration cube"""
         tkinter.messagebox.showinfo(title="Info",message="Ready to record dark frame. Place a lens cap on the imager.")
         dark_cube = self.CM.grab_dark_cube(self.Basler.SERIAL_NUMBER)
         meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], 30, self.Basler.Y_OFFSET,
-                                               kic.Basler.Y_BINNING, self.Basler.A, self.Basler.B, self.Basler.C, 0)
+                                               self.Basler.Y_BINNING, self.Basler.A, self.Basler.B, self.Basler.C, 0)
 
         kic.HyperspecUtility.write_cube(dark_cube,meta,f'{self.filepath}/Corr',f'dark_cube.hdr')
         tkinter.messagebox.showinfo(title="Info",message="dark Cube captured successfully")
-        #print("Cube Captured")
+
 
     def new_test_image(self):
+        """Callback funktion for capturing one RAW frame from camera"""
         img = self.CM.capture_frame(self.Basler.SERIAL_NUMBER)
         img = cv.resize(img,(600,400))
         img = ImageTk.PhotoImage(Image.fromarray(img))
@@ -108,13 +111,13 @@ class mainwindow():
         self.lb_test_img.image = img
 
     def apply_Values(self):
-
+        """Callback funktion for appling/setting  new Values"""
         self.expTime = float(self.ent_expTime.get())
         self.filepath = self.ent_file.get()
         self.samples = int(self.ent_samples.get())
         self.filename = self.ent_filename.get()
 
-        self.CM.set_exposure(self.Basler.SERIAL_NUMBER,float(self.expTime))
+        self.CM.set_exposure(self.Basler.SERIAL_NUMBER,int(self.expTime))
         self.expTime = self.CM.cameras[0].ExposureTime.GetValue()
         self.ent_expTime.delete(0,tkinter.END)
         self.ent_expTime.insert(0,int(self.expTime))
@@ -125,9 +128,13 @@ class mainwindow():
         tkinter.messagebox.showinfo(title="Applied Values", message=f'Exposure TIme:{self.CM.cameras[0].ExposureTime.GetValue()}{os.linesep}FPS:{self.CM.cameras[0].ResultingFrameRate.GetValue()}{os.linesep}Number of Samples: {self.samples}{os.linesep}Filepath: {self.filepath}/{self.filename}.hdr')
 
     def capture_Cube(self):
+        """Callback function vor capturing a hyperspectral Cube"""
+        # cube without correction
         #cube = self.CM.grab_hyperspec(self.Basler.SERIAL_NUMBER, self.samples, 3, False, 1)
 
+        # cube with correction
         cube = self.CM.grab_hyperspec(self.Basler.SERIAL_NUMBER, self.samples, f'{self.filepath}/Corr', True, 1)
+
         # Calibration
         w = [405, 632.8, 980]
         # pixelWerte
@@ -135,22 +142,26 @@ class mainwindow():
 
         A, B, C = np.polyfit(p, w, 2)
 
+
+
         # PikaL (camera data class parameter
-        meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], self.samples, self.Basler.Y_OFFSET, kic.Basler.Y_BINNING, self.Basler.A, self.Basler.B, self.Basler.C, 0)
+        meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], self.samples, self.Basler.Y_OFFSET, self.Basler.Y_BINNING, self.Basler.A, self.Basler.B, self.Basler.C, 0)
 
         #manuelle Kalibrirung
-        #meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], self.samples, self.Basler.Y_OFFSET, kic.Basler.Y_BINNING, A, B, C, 0)
+        #meta = kic.HyperspecUtility.generate_metadata(self.CM.cameras[0], self.samples, self.Basler.Y_OFFSET, self.Basler.Y_BINNING, A, B, C, 0)
 
         kic.HyperspecUtility.write_cube(cube,meta,self.filepath,f'{self.filename}.hdr')
 
         tkinter.messagebox.showinfo(title="Info",message="Cube captures Successfully")
 
     def init_camera(self):
+        """function for initializing Camera """
         CM = kic.CameraManager()
         CM.add_cameras()
         CM.cameras[0].DeviceLinkThroughputLimitMode.SetValue("Off")
         CM.set_camera_window(self.Basler.SERIAL_NUMBER,self.Basler.ROI_WIDTH,self.Basler.ROI_HEIGHT,self.Basler.X_OFFSET,self.Basler.Y_OFFSET,self.Basler.Y_BINNING)
-
         return CM
 
+
+# new Mainwindow
 mw =mainwindow()
