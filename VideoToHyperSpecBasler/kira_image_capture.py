@@ -30,17 +30,17 @@ class PikaL:
 @dataclass
 class Basler:
     # Pika L Parameters, from table on the Camera Setup and Windowing Page
-    ROI_WIDTH = 1920
-    ROI_HEIGHT = 1200
+    ROI_WIDTH = 1296
+    ROI_HEIGHT = 1032
     Y_BINNING = 1
 
     # Device-specific parameters obtained from Resonon Camera Configuration Report
     X_OFFSET = 0
     Y_OFFSET = 0
-    A = 0.00010489999840501696
-    B = 0.933646023273468
-    C = 51.4379997253418
-    SERIAL_NUMBER = "40275225"
+    A = 0.00013639214204672206
+    B = 1.0280932959428337
+    C = 404.99999999999994
+    SERIAL_NUMBER = "40484617"
 
 
 class CameraManager():
@@ -277,7 +277,7 @@ class HyperspecUtility():
         metadata["bands"] = camera.Width.GetValue()
         metadata["spectral binning"] = y_binning
         metadata["interleave"] = "bil"
-        metadata["bit depth"] = 0
+        metadata["bit depth"] = 12
         metadata["data type"] = 12
         metadata["header offset"] = 0
         metadata["framerate"] = camera.AcquisitionFrameRate.GetValue()
